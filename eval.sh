@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=$1 python ./main.py --config ./config/AASIST_ASVspoof5.conf --eval

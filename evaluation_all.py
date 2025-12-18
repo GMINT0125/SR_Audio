@@ -5,7 +5,7 @@
     1. ASVspoof 2019
     2. ASVspoof 5 (2024)
     3. DFADD 
-    4. Unseen (최신 TTS 모델)
+    4. Unseen (elevenlabs, gemini, openai)
 ]   
 평가가 필요한 가중치 경로를 main 함수의 model_path를 변경하여 실행하면 됩니다.
 """
@@ -86,6 +86,8 @@ def get_model(model_config: Dict, device: torch.device, model_path):
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
     print("no. model params:{}".format(nb_params))
 
+
+    """가중치 로드"""
     model.load_state_dict(
         torch.load(model_path, map_location=device))
 
@@ -139,8 +141,8 @@ def produce_evaluation_unseen(
     save_path: Union[str, Path]
 ) -> None:
     """
-    Save format (4 columns, ASVspoof 호환):
-      spk_id  utt_id  score  key
+    Save format:
+      spk_id(Unseen)  utt_id  score  key
     """
     model.eval()
     save_path = Path(save_path)
@@ -244,6 +246,18 @@ def eval_asv2019(model, device, output_dir):
     print(f"ASVspoof2019_dev : eval_eer: {eval_eer:.3f}, eval_dcf:{eval_dcf:.5f} , eval_cllr:{eval_cllr:.5f}")
 
 def eval_unseen(model, device, output_dir):
+    """
+    Unseen Dataset 평가 코드
+    bonafide는 DFADD의 VCTK 데이터를 사용하여 정량 평가
+    3가지 경우에 대해서 평가를 진행합니다.
+
+        1. Bonafide + Cloning + TTS
+        2. Bonafide + Cloning
+        3. Bonafide + 개별 TTS 
+
+    output은 exp_result의 Unseen 폴더에 저장됩니다.
+
+    """
     DATA_PATH = Path("../../../data/UnseenTTS")
     spoof_clone = DATA_PATH / "cloning"
     spoof_tts   = DATA_PATH / "tts"
@@ -380,10 +394,12 @@ class TestDataset(Dataset):
 
 class TestDataset_DFADD(Dataset):
     def __init__(self, list_IDs, base_dir, dataset_name):
-        """self.list_IDs	: list of strings (each string: utt key),
+        """
+        DFADD test의 경우, ASVSpoof와 확장자가 일치하지 않기 떄문에 별도의 TestDatset 클래스 구현
+        self.list_IDs	: list of strings (each string: utt key),
         """
         self.list_IDs = list_IDs
-        self.base_dir = Path(base_dir) #../../../data/DFADD/DFADD_ZIP/DATASET_GradTTS/test
+        self.base_dir = Path(base_dir) # ex) ../../../data/DFADD/DFADD_ZIP/DATASET_GradTTS/test
         self.cut = 64600  # take ~4 sec audio (64600 samples)
         self.dataset_name = dataset_name #'GradTTS', 'matcha', 'NaturalSpeech2', 'pflow', 'StyleTTS2'
 
@@ -405,10 +421,10 @@ class TestDataset_DFADD(Dataset):
 class TestDataset_Unseen(Dataset):
     def __init__(self, list_IDs, audio_dirs, cut=64600):
         """
+        Unseen Dataset 전용 TestDataset 클래스
         list_IDs:
           bonafide: (utt_id, "bonafide")
           spoof:    (folder_name, "utt_id", "clone/tts", "spoof")
-
         audio_dirs: [spoof_clone_dir, spoof_tts_dir, bonafide_dir] (Path or str)
         """
         self.list_IDs = list_IDs
@@ -447,7 +463,7 @@ class TestDataset_Unseen(Dataset):
                 unique_id = f"{folder_name}__{utt_id}"
             
             if audio_path.suffix.lower() == ".mp3":
-                # mp3는 librosa (앞부분만)
+                # mp3는 librosa )
                 X, _ = librosa.load(
                     str(audio_path),
                     sr=16000,
@@ -455,7 +471,7 @@ class TestDataset_Unseen(Dataset):
                     duration=self.cut / 16000
                 )
             else:
-                # wav / flac → SoundFile로 앞부분만
+                # wav / flac는 SoundFile
                 with sf.SoundFile(str(audio_path)) as f:
                     max_frames = int((self.cut / 16000) * f.samplerate)
                     max_frames = max(1, max_frames)
@@ -483,6 +499,7 @@ class TestDataset_Unseen(Dataset):
             print(f"[DROP] {meta} | {e}")
             return None
 def collate_drop_none(batch):
+    """파일이 깨졌을 경우 None이 리턴될 수 있으므로 이를 제거하는 collate 함수"""
     batch = [b for b in batch if b is not None]
     if len(batch) == 0:
         return None

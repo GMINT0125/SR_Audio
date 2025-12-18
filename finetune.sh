@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=$1 python ./finetune.py --config ./config/AASIST_ASVspoof5.conf

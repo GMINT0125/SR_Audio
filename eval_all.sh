@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=$1 python evaluation_all.py

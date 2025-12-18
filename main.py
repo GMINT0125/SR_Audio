@@ -208,7 +208,7 @@ def get_loader(
     print("no. training files:", len(file_train))
 
 
-    #RawBoost 증강 Dataset
+    #RawBoost
     if raw_boost:
         train_set = TrainDatasetWithRawBoost(list_IDs=file_train,
                                                labels=d_label_trn,
