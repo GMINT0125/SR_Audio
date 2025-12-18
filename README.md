@@ -1,47 +1,76 @@
-# AASIST ASVspoof5 Baseline
-By Hye-jin Shim, Carnegie Mellon University, 2024
+# AASIST 
+
+본 코드는 AASIST 모델을 훈련 및 데이터셋에 대한 평가를 위해 제작되었습니다.
+
+1. ASVspoof 5 Dataset Train
+2. ASVspoof 5 + ASVspoof 2019 Dataset Train
+3. Evaluation Dataset
+
+## Directory Setting
+본 코드는 아래의 Directory setting을 바탕으로 구성되어 있습니다.
+결과 재현 시, 데이터 경로를 본인의 데이터셋 경로에 맞게 변경해주셔야 합니다.
+세부 내용은 아래의 내용을 참조하시기 바랍니다.
+
+```bash
+root
+├── app
+│   ├── asvspoof5 
+│        ├── Baseline-AASIST
+│               ├── main.py
+│               ├── evaluation_all.py
+│               ├── finetune.py
+├── data
+│   ├── ASVspoof
+│   │    ├── ASVspoof5
+│   │    ├── ASVspoof2019
+│   ├── DFADD
+│   │     ├── DFADD_ZIP
+│   │         ├── DATASET_tts
+│   │         ├── ...
+│   ├── UnseenTTS
+│   │     ├── cloning
+│   │         ├─- ...
+│   │         ├── 
+│   │     ├── tts
+│             ├── tts model foler
+│             ├── ...
+
+```
 
 
-## Requirement
+## 1.  ASVspoof 5 Dataset Train
 
-First, downdoload the code through git clone.
-```
-git clone https://github.com/asvspoof-challenge/asvspoof5.git
-```
+### 1.1 학습 데이터 경로 설정
+- ```config/AASIST_ASVspoof5.conf``` 내부 **```dataset_path```** 항목 경로에 맞게 변경
 
-To set up a new conda environment to run an experiment using GPU, follow the code below.
-If you want to use your existing environment, please check the Pytorch and Cuda versions and run the last line only.
+### 1.2 실행
+- ```bash train.sh 0``` 
+    - 학습 결과는 ```./exp_result/AASIST_ASVspoof5_ep{epoch}_bs{batch size}/``` 폴더 내부에 저장됩니다
 
-```
-conda create --name aasist_baseline python=3.9
-conda activate aasist_baseline
-conda install pytorch==1.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
-pip install -r requirements.txt
-```
+평가의 경우
+- ```bash eval.sh 0``` 실행 (학습과 같은 경로에 결과 저장)
 
-## Usage
-Before running the experiment, replace the data directory of `database_path` in the config file of `./config/AASIST_ASVspoof5.conf`.
 
-To train the model:
-```
-python ./main.py --config ./config/AASIST_ASVspoof5.conf
-```
 
-To evaluate the saved model (showed `EER: 15.2%` on validation set):
-* Evaluation only phase considers both of Phase 1 and Phase 2 evaluation metrics
-```
-python ./main.py --config ./config/AASIST_ASVspoof5.conf --eval
-```
+## 2.  ASVspoof 5 + ASVspoof2019 Dataset Train
 
-## Citation
-This code is based on https://github.com/clovaai/aasist. If you use AASIST model, please cite the following paper:
-```
-@inproceedings{jung2022aasist,
-  title={Aasist: Audio anti-spoofing using integrated spectro-temporal graph attention networks},
-  author={Jung, Jee-weon and Heo, Hee-Soo and Tak, Hemlata and Shim, Hye-jin and Chung, Joon Son and Lee, Bong-Jin and Yu, Ha-Jin and Evans, Nicholas},
-  booktitle={ICASSP 2022-2022 IEEE international conference on acoustics, speech and signal processing (ICASSP)},
-  pages={6367--6371},
-  year={2022},
-  organization={IEEE}
-}
-```
+### 2.1 학습 데이터 경로 설정
+- ```finetune.py``` 의 ```main``` 함수 내부 ```python DATA_PATH```변수 데이터셋의 경로에 맞게 변경
+
+### 2.2 실행
+- ```bash finetue.sh 0``` 실행
+    - 학습 결과는 ```./exp_result/Finetune/```폴더 내부에 저장됩니다.
+
+
+
+
+## 3.  Evaluation Dataset
+
+### 3.1 평가 데이터 경로 및 가중치 경로 설정
+- ```evaluation_all.py``` 의 ```main``` 함수 내부 ```model_path```변수를 평가하고자 하는 모델 가중치 경로로 변경
+- 코드 내부 ```eval_{dataset}``` 함수 내부의 ```DATA_PATH``` 경로를 데이터셋 경로에 맞게 변경
+
+### 3.2 실행
+- ```bash eval_all.sh``` 실행
+    - 평가 결과는 ```./exp_result/{Dataset name}/``` 폴더 내부에 저장됩니다.
+
