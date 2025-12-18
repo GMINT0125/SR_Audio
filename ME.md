@@ -6,8 +6,13 @@
 2. ASVspoof 5 + ASVspoof2019 Dataset Train
 3. Evaluation Dataset
 
-## 0. Environment
-
-1) pip install -r requirements.txt
+## Directory Setting
 
 
+## 1. ASVspoof 5 Dataset Train
+
+- "./config/AASIST_ASVspoof5.conf" 내부 dataset_path 항목 경로에 맞게 변경
+- bash train.sh 0 실행 (학습 결과는 exp_result/AASIST_ASVspoof5_ep{epoch}_bs{batch size} 형태로 저장됩니다.)
+
+평가의 경우
+- bash eval.sh
