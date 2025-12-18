@@ -6,5 +6,8 @@
 2. ASVspoof 5 + ASVspoof2019 Dataset Train
 3. Evaluation Dataset
 
-# 0. Environment
+## 0. Environment
+
+1) pip install -r requirements.txt
+
 
