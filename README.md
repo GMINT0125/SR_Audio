@@ -50,7 +50,7 @@ cd Baseline-AASIST
 - ```config/AASIST_ASVspoof5.conf``` 내부 ```dataset_path``` 항목 경로에 맞게 변경
 
 ###     1.2 실행
-- ```bash train.sh 0``` 
+- ```bash train.sh 0(GPU number)``` 
     - 학습 결과는 ```./exp_result/AASIST_ASVspoof5_ep{epoch}_bs{batch size}/``` 폴더 내부에 저장됩니다
 
 평가의 경우
@@ -64,7 +64,7 @@ cd Baseline-AASIST
 - ```finetune.py``` 의 ```main``` 함수 내부 ```python DATA_PATH```변수 데이터셋의 경로에 맞게 변경
 
 ###     2.2 실행
-- ```bash finetue.sh 0``` 실행
+- ```bash finetue.sh 0(GPU number)``` 실행
     - 학습 결과는 ```./exp_result/Finetune/```폴더 내부에 저장됩니다.
 
 
@@ -77,7 +77,7 @@ cd Baseline-AASIST
 - 코드 내부 ```eval_{dataset}``` 함수 내부의 ```DATA_PATH``` 경로를 데이터셋 경로에 맞게 변경
 
 ###     3.2 실행
-- ```bash eval_all.sh``` 실행
+- ```bash eval_all.sh 0(GPU number)``` 실행
     - 평가 결과는 ```./exp_result/{Dataset name}/``` 폴더 내부에 저장됩니다.
 
 

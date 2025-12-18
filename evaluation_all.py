@@ -42,6 +42,8 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 
 def main():
+
+    """ MODEL CONFIG 설정   """
     MODEL_CONFIG = {
         "architecture": "AASIST",
         "nb_samp": 64600,
@@ -51,8 +53,9 @@ def main():
         "pool_ratios": [0.5, 0.7, 0.5, 0.5],
         "temperatures": [2.0, 2.0, 100.0, 100.0]
     }
+
     """    MODEL LOAD    """ 
-    model_path = "./models/weights/AASIST/best.pth" 
+    model_path = "./models/weights/AASIST/best.pth"  # <- 모델 가중치 경로 (필요 시 수정해서 사용하시면 됩니다.)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = get_model(MODEL_CONFIG, device, model_path)
 
@@ -63,6 +66,7 @@ def main():
     output_dir = Path(output_dir)
     print("Results will be saved to {}".format(output_dir))
 
+    """    EVALUATION    """
     print("DFADD 평가 시작")
     eval_DFADD(model, device, output_dir)
     print("DFADD 평가 완료")
@@ -95,6 +99,9 @@ def get_model(model_config: Dict, device: torch.device, model_path):
 
     return model
 
+"""
+평가에 필요한 score.txt 파일을 생성하는 함수
+"""
 def produce_evaluation_file(
     data_loader: DataLoader,
     model,
@@ -165,6 +172,8 @@ def produce_evaluation_unseen(
 
     print(f"[Unseen] Scores saved to {save_path}")
 
+
+""" 각 데이터셋에 대한 평가 함수 """
 def eval_DFADD(model, device, output_dir):
 
     DATA_PATH = Path("../../../data/DFADD/DFADD_ZIP")

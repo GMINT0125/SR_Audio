@@ -146,7 +146,6 @@ def get_attack_type(dir_meta, is_train = False, is_eval = False):
             atk_type.append(attack_type)
         return atk_cat, atk_type
 
-
 def pad(x, max_len=64600):
     x_len = x.shape[0]
     if x_len >= max_len:
