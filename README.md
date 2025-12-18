@@ -46,10 +46,10 @@ cd Baseline-AASIST
 
 ## 1.  ASVspoof 5 Dataset Train
 
-### 1.1 학습 데이터 경로 설정
+###     1.1 학습 데이터 경로 설정
 - ```config/AASIST_ASVspoof5.conf``` 내부 ```dataset_path``` 항목 경로에 맞게 변경
 
-### 1.2 실행
+###     1.2 실행
 - ```bash train.sh 0``` 
     - 학습 결과는 ```./exp_result/AASIST_ASVspoof5_ep{epoch}_bs{batch size}/``` 폴더 내부에 저장됩니다
 
@@ -60,10 +60,10 @@ cd Baseline-AASIST
 
 ## 2.  ASVspoof 5 + ASVspoof2019 Dataset Train
 
-### 2.1 학습 데이터 경로 설정
+###     2.1 학습 데이터 경로 설정
 - ```finetune.py``` 의 ```main``` 함수 내부 ```python DATA_PATH```변수 데이터셋의 경로에 맞게 변경
 
-### 2.2 실행
+###     2.2 실행
 - ```bash finetue.sh 0``` 실행
     - 학습 결과는 ```./exp_result/Finetune/```폴더 내부에 저장됩니다.
 
@@ -72,11 +72,11 @@ cd Baseline-AASIST
 
 ## 3.  Evaluation Dataset
 
-### 3.1 평가 데이터 경로 및 가중치 경로 설정
+###     3.1 평가 데이터 경로 및 가중치 경로 설정
 - ```evaluation_all.py``` 의 ```main``` 함수 내부 ```model_path```변수를 평가하고자 하는 모델 가중치 경로로 변경
 - 코드 내부 ```eval_{dataset}``` 함수 내부의 ```DATA_PATH``` 경로를 데이터셋 경로에 맞게 변경
 
-### 3.2 실행
+###     3.2 실행
 - ```bash eval_all.sh``` 실행
     - 평가 결과는 ```./exp_result/{Dataset name}/``` 폴더 내부에 저장됩니다.
 
@@ -93,4 +93,4 @@ cd Baseline-AASIST
 |------|------|------|------|------|------|------|------|------|
 |ASV5|27.14|-|4.80|3.32|0.29|1.17|8.03|28.51
 |ASV2019|-|0.83|37.67|27.33|34.83|37.33|49.33|17.79|
-|ASV5+2019|25.64|2.01|18.15|23.68|29.81|40.66|26.86|
+|ASV5+2019|25.64|2.01|18.15|23.68|29.81|40.66|26.86|-|
