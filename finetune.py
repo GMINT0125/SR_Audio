@@ -1,4 +1,8 @@
-"""Asvspoof2019를 활용한 fine-tuning"""
+"""
+AASIST에 ASVspoof5 + ASVspoof2019 종합 데이터셋 훈련을 위한 코드입니다.
+공식 github의 ASVspoof5 pretrained weight에 2019 데이터셋을 파인튜닝 하는 방식입니다.
+main 함수의 DATA_PATH를 2019 LA 데이터셋 경로로 설정해주시면 됩니다.
+"""
 import argparse
 import json
 import os

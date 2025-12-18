@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES=0 python ./main.py --config ./config/AASIST_ASVspoof5.conf
+CUDA_VISIBLE_DEVICES=$1 python ./main.py --config ./config/AASIST_ASVspoof5.conf --rawboost $2 --algo $3 --codec $4

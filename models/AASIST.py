@@ -87,7 +87,7 @@ class GraphAttentionLayer(nn.Module):
         att_map = att_map / self.temp
 
         att_map = F.softmax(att_map, dim=-2)
-
+        self.last_att_map = att_map.detach()
         return att_map
 
     def _project(self, x, att_map):
@@ -251,6 +251,7 @@ class HtrgGraphAttentionLayer(nn.Module):
         att_map = att_map / self.temp
 
         att_map = F.softmax(att_map, dim=-2)
+        self.last_att_map = att_map.detach()
 
         return att_map
 

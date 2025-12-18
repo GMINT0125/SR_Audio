@@ -1,10 +1,9 @@
 """
-Main script that trains, validates, and evaluates
-various models including AASIST.
 
-AASIST
-Copyright (c) 2021-present NAVER Corp.
-MIT license
+AASIST를 ASVspoof5 데이터셋에 훈란 및 평가하기 위한 코드입니다.
+./config/AASIST_ASVspoof5.conf 의 database_path를 ASVspoof5 데이터셋 경로로 수정한 후 실행하시면 됩니다.
+Output은 exp_result/AASIST_ASVspoof_ep{epoch}_bs{batch_size} 경로에 저장됩니다. 
+
 """
 import argparse
 import json
@@ -23,7 +22,7 @@ import torchaudio
 from torch.utils.tensorboard import SummaryWriter
 from torchcontrib.optim import SWA
 
-from data_utils import (TrainDataset,TestDataset, genSpoof_list, genSpoof_list_asv5)
+from data_utils import (TrainDataset,TrainDatasetWithRawBoost,TestDataset, genSpoof_list, genSpoof_list_asv5)
 from eval.calculate_metrics import calculate_minDCF_EER_CLLR, calculate_aDCF_tdcf_tEER
 from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 
@@ -58,7 +57,7 @@ def main(args: argparse.Namespace) -> None:
     model_tag = "{}_ep{}_bs{}".format(
         os.path.splitext(os.path.basename(args.config))[0],
         config["num_epochs"], config["batch_size"])
-    model_tag = "test_codec"
+    # model_tag = 저장 폴더
     if args.comment:
         model_tag = model_tag + "_{}".format(args.comment)
     model_tag = output_dir / model_tag
@@ -79,7 +78,7 @@ def main(args: argparse.Namespace) -> None:
 
     # define dataloaders
     trn_loader, dev_loader = get_loader(
-        database_path, args.seed, config)
+        database_path, args.seed, config, raw_boost = args.rawboost, args = args)
 
     # evaluates pretrained model 
     # NOTE: Currently it is evaluated on the development set instead of the evaluation set
@@ -91,17 +90,15 @@ def main(args: argparse.Namespace) -> None:
             torch.load(config["model_path"], map_location=device))
         print("Model loaded : {}".format(config["model_path"]))
         print("Start evaluation...")
-        
 
         eval_trial_path = (database_path /
                             "ASVspoof5.eval.track_1.tsv")
 
-
-        produce_evaluation_file(dev_loader, model, device, # dev랑 eval 변경하고 싶으면 여기 바꾸면 된다. # eval_loader / dev_loader
-                                eval_score_path, dev_trial_path) #dev_trial_path # eval_trial_path
+        produce_evaluation_file(eval_loader, model, device, # eval_loader / dev_loader
+                                eval_score_path, eval_trial_path) #dev_trial_path / eval_trial_path
 
         eval_dcf, eval_eer, eval_cllr = calculate_minDCF_EER_CLLR(
-            cm_scores_file=eval_score_path, #    "eval_output": "eval_scores_using_best_dev_model.txt"
+            cm_scores_file=eval_score_path,
             output_file=model_tag/"loaded_model_result.txt")
         print("DONE. eval_eer: {:.3f}, eval_dcf:{:.5f} , eval_cllr:{:.5f}".format(eval_eer, eval_dcf, eval_cllr))
         sys.exit(0)
@@ -173,8 +170,29 @@ def get_loader(
         database_path: str,
         seed: int,
         config: dict,
-        eval = False) -> List[torch.utils.data.DataLoader]:
+        eval = False,
+        raw_boost = False,
+        args = None) -> List[torch.utils.data.DataLoader]:
     """Make PyTorch DataLoaders for train / developement"""
+
+    # AsvSpoof5 Evaluation 
+    if eval:
+        eval_database_path = database_path / "flac_E_eval/"
+        eval_trial_path = (database_path /
+                          "ASVspoof5.eval.track_1.tsv")
+        _, file_eval = genSpoof_list_asv5(dir_meta=eval_trial_path,
+                                    is_train=False,
+                                    is_eval=False)
+        print("no. evaluation files:", len(file_eval))
+        eval_set = TestDataset(list_IDs=file_eval[:2000],
+                                                base_dir=eval_database_path)
+        eval_loader = DataLoader(eval_set,
+                                batch_size=config["batch_size"],
+                                shuffle=False,
+                                drop_last=False,
+                                num_workers=4, 
+                                pin_memory=True)
+        return eval_loader
 
     trn_database_path = database_path / "flac_T/"
     dev_database_path = database_path / "flac_D/"
@@ -189,9 +207,24 @@ def get_loader(
                                             is_eval=False)
     print("no. training files:", len(file_train))
 
-    train_set = TrainDataset(list_IDs=file_train,
-                                           labels=d_label_trn,
-                                           base_dir=trn_database_path)
+
+    #RawBoost 증강 Dataset
+    if raw_boost:
+        train_set = TrainDatasetWithRawBoost(list_IDs=file_train,
+                                               labels=d_label_trn,
+                                               base_dir=trn_database_path,
+                                               algo = args.algo,
+                                               args = args) #코덱 증강 여부 확인 
+        
+        print("It's using RawBoost augmentation.")
+        print("It's algorithm is {}".format(args.algo))
+
+    #RawBoost 증강 X 
+    else:
+        train_set = TrainDataset(list_IDs=file_train,
+                                        labels=d_label_trn,
+                                        base_dir=trn_database_path,
+                                        args = args)  #코덱 증강 여부 확인 
     gen = torch.Generator()
     gen.manual_seed(seed)
     trn_loader = DataLoader(train_set,
@@ -217,32 +250,14 @@ def get_loader(
                             num_workers=4, 
                             pin_memory=True)
 
-    if eval: #eval set에 대해서...
-        eval_database_path = database_path / "flac_E_eval/"
-        eval_trial_path = (database_path /
-                          "ASVspoof5.eval.track_1.tsv")
-        _, file_eval = genSpoof_list_asv5(dir_meta=eval_trial_path,
-                                    is_train=False,
-                                    is_eval=False)
-        print("no. evaluation files:", len(file_eval))
-        eval_set = TestDataset(list_IDs=file_eval[:2000],
-                                                base_dir=eval_database_path)
-        eval_loader = DataLoader(eval_set,
-                                batch_size=config["batch_size"],
-                                shuffle=False,
-                                drop_last=False,
-                                num_workers=4, 
-                                pin_memory=True)
-        return eval_loader
-
     return trn_loader, dev_loader
 
 def produce_evaluation_file(
-    data_loader: DataLoader, # dev_loader
+    data_loader: DataLoader,
     model,
     device: torch.device,
-    save_path: str,  #eval_score_path
-    trial_path: str) -> None:   #dev_trial_path
+    save_path: str,
+    trial_path: str) -> None:
     """Perform evaluation and save the score to a file"""
     model.eval()
     with open(trial_path, "r") as f_trl:
@@ -281,8 +296,8 @@ def train_epoch(
     model.train()
 
     # set objective (Loss) functions
-    weight = torch.FloatTensor([0.1, 0.9]).to(device) #--> weight을 왜 0.1, 0.9로 주지?
-    criterion = nn.CrossEntropyLoss(weight=weight) #--> Triplet Loss로 ?
+    weight = torch.FloatTensor([0.1, 0.9]).to(device)
+    criterion = nn.CrossEntropyLoss(weight=weight)
     for batch_x, batch_y in tqdm(trn_loader):
         batch_size = batch_x.size(0)
         num_total += batch_size
@@ -308,8 +323,6 @@ def train_epoch(
 
 
 if __name__ == "__main__":
-
-
     parser = argparse.ArgumentParser(description="ASVspoof detection system")
     parser.add_argument("--config",
                         dest="config",
@@ -339,4 +352,57 @@ if __name__ == "__main__":
                         type=str,
                         default=None,
                         help="directory to the model weight file (can be also given in the config file)")
+    
+    #codec
+    parser.add_argument('--codec', type = str_to_bool, default=False,
+                        help = 'Use codec augmentation or not. [default=False]')
+
+    # rawboost
+    parser.add_argument('--rawboost', type=str_to_bool, default=False,
+                            help = 'Use Rawboost augmentation or not. [default=False]')
+
+
+    parser.add_argument('--algo', type=int, default=0,  # 5
+                    help='Rawboost algos discriptions. 0: No augmentation 1: LnL_convolutive_noise, 2: ISD_additive_noise, 3: SSI_additive_noise, 4: series algo (1+2+3), \
+                          5: series algo (1+2), 6: series algo (1+3), 7: series algo(2+3), 8: parallel algo(1,2) .[default=0]')
+    # LnL_convolutive_noise parameters 
+    parser.add_argument('--nBands', type=int, default=5, 
+                    help='number of notch filters.The higher the number of bands, the more aggresive the distortions is.[default=5]')
+    parser.add_argument('--minF', type=int, default=20, 
+                    help='minimum centre frequency [Hz] of notch filter.[default=20] ')
+    parser.add_argument('--maxF', type=int, default=8000, 
+                    help='maximum centre frequency [Hz] (<sr/2)  of notch filter.[default=8000]')
+    parser.add_argument('--minBW', type=int, default=100, 
+                    help='minimum width [Hz] of filter.[default=100] ')
+    parser.add_argument('--maxBW', type=int, default=1000, 
+                    help='maximum width [Hz] of filter.[default=1000] ')
+    parser.add_argument('--minCoeff', type=int, default=10, 
+                    help='minimum filter coefficients. More the filter coefficients more ideal the filter slope.[default=10]')
+    parser.add_argument('--maxCoeff', type=int, default=100, 
+                    help='maximum filter coefficients. More the filter coefficients more ideal the filter slope.[default=100]')
+    parser.add_argument('--minG', type=int, default=0, 
+                    help='minimum gain factor of linear component.[default=0]')
+    parser.add_argument('--maxG', type=int, default=0, 
+                    help='maximum gain factor of linear component.[default=0]')
+    parser.add_argument('--minBiasLinNonLin', type=int, default=5, 
+                    help=' minimum gain difference between linear and non-linear components.[default=5]')
+    parser.add_argument('--maxBiasLinNonLin', type=int, default=20, 
+                    help=' maximum gain difference between linear and non-linear components.[default=20]')
+    parser.add_argument('--N_f', type=int, default=5, 
+                    help='order of the (non-)linearity where N_f=1 refers only to linear components.[default=5]')
+    
+    # ISD_additive_noise parameters
+    parser.add_argument('--P', type=int, default=10, 
+                    help='Maximum number of uniformly distributed samples in [%].[defaul=10]')
+    parser.add_argument('--g_sd', type=int, default=2, 
+                    help='gain parameters > 0. [default=2]')
+
+    # SSI_additive_noise parameters
+    parser.add_argument('--SNRmin', type=int, default=10, 
+                    help='Minimum SNR value for coloured additive noise.[defaul=10]')
+    parser.add_argument('--SNRmax', type=int, default=40, 
+                    help='Maximum SNR value for coloured additive noise.[defaul=40]')
+
+
+    
     main(parser.parse_args())
