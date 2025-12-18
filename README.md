@@ -36,12 +36,18 @@ root
 │             ├── ...
 
 ```
+## 0. 환경 설정
+
+```bash
+pip install -r requirements.txt
+cd Baseline-AASIST
+```
 
 
 ## 1.  ASVspoof 5 Dataset Train
 
 ### 1.1 학습 데이터 경로 설정
-- ```config/AASIST_ASVspoof5.conf``` 내부 **```dataset_path```** 항목 경로에 맞게 변경
+- ```config/AASIST_ASVspoof5.conf``` 내부 ```dataset_path``` 항목 경로에 맞게 변경
 
 ### 1.2 실행
 - ```bash train.sh 0``` 
@@ -74,3 +80,17 @@ root
 - ```bash eval_all.sh``` 실행
     - 평가 결과는 ```./exp_result/{Dataset name}/``` 폴더 내부에 저장됩니다.
 
+
+
+## 요구사항
+- Python: 3.8+ 권장
+- CUDA GPU: 권장 (CPU로도 가능하나 매우 느립니다)
+- PyTorch: aasist/requirements.txt에 따라 자동 설치됨
+- ASVspoof5, ASVspoof2019, DFADD, UnseenTTS 데이터 경로에 맞게 설치 필요
+
+## 재현 EER
+|Train data|ASV5|ASV2019|D1|D2|D3|F1|F2|Unseen(종합)|
+|------|------|------|------|------|------|------|------|------|
+|ASV5|27.14|-|4.80|3.32|0.29|1.17|8.03|28.51
+|ASV2019|-|0.83|37.67|27.33|34.83|37.33|49.33|17.79|
+|ASV5+2019|25.64|2.01|18.15|23.68|29.81|40.66|26.86|
