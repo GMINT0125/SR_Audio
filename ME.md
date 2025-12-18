@@ -17,7 +17,7 @@ root
 │   ├── asvspoof5 
 │        ├── Baseline-AASIST
 │               ├── main.py
-│               ├── evaluation_al'l.py
+│               ├── evaluation_all.py
 │               ├── finetune.py
 ├── data
 │   ├── ASVspoof
@@ -25,7 +25,7 @@ root
 │   │    ├── ASVspoof2019
 │   ├── DFADD
 │   │     ├── DFADD_ZIP
-│   │         ├── DATASET_{tts}
+│   │         ├── DATASET_tts
 │   │         ├── ...
 │   ├── UnseenTTS
 │   │     ├── cloning
