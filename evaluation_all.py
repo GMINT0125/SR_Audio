@@ -7,7 +7,8 @@
     3. DFADD 
     4. Unseen (elevenlabs, gemini, openai)
 ]   
-평가가 필요한 가중치 경로를 main 함수의 model_path를 변경하여 실행하면 됩니다.
+1. 평가가 필요한 가중치 경로를 main 함수의 model_path를 변경해주세요.
+2. eval_{dataset} 함수 내부 DATA_PATH를 본인의 데이터셋 경로로 변경 후 실행하면 됩니다. 
 """
 
 import os
@@ -202,7 +203,7 @@ def eval_asv5(model, device, output_dir):
 
     DATA_PATH = Path("../../../data/ASVspoof/ASVspoof5")
     dev_protocol = DATA_PATH / "ASVspoof5.eval.track_1.tsv"
-    dev_path = DATA_PATH / "flac_E_eval"             # eval / dev/
+    dev_path = DATA_PATH / "flac_E_eval"             
 
     output_dir = output_dir / "ASV5"
     output_dir.mkdir(parents = True, exist_ok = True)
