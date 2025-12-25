@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from torchcontrib.optim import SWA
 
-from data_utils import (genSpoof_list, genSpoof_list_DFADD) #DFADD랑 2019랑 형식이 같아서 DFADD 사용.
+from data_utils import (genSpoof_list_asv5, genSpoof_list_DFADD) #DFADD랑 2019랑 형식이 같아서 DFADD 사용.
 from eval.calculate_metrics import calculate_minDCF_EER_CLLR, calculate_aDCF_tdcf_tEER
 from utils import create_optimizer, seed_worker, set_seed, str_to_bool
 
@@ -33,8 +33,10 @@ import soundfile as sf
 
 def main(args: argparse.Namespace) -> None:
 
-    DATA_PATH = Path("../../../data/ASVspoof/ASVspoof2019/LA") #ASVspoof2019 LA 
-
+    DATA_PATH = Path("../../../data/ASVspoof") #ASVspoof2019 LA 
+    DATA_PATH_2019 = DATA_PATH / "ASVspoof2019/LA"
+    DATA_PATH_5 = DATA_PATH / "ASVspoof5"
+    
     with open(args.config, "r") as f_json:
         config = json.loads(f_json.read())
 
@@ -50,7 +52,7 @@ def main(args: argparse.Namespace) -> None:
     optim_config["epochs"] = config["num_epochs"]
 
     """    MODEL LOAD    """
-    model_path = "./models/weights/AASIST/best.pth"
+    model_path = "./models/weights/AASIST/best.pth" #--> spoof5 데이터셋에 학습된 모델 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = get_model(model_config, device)
@@ -66,13 +68,15 @@ def main(args: argparse.Namespace) -> None:
     output_dir = Path(output_dir) #./exp_result/finetune 로 설정.
     print("Results will be saved to {}".format(output_dir))
 
-    cm_protocol = DATA_PATH / "ASVspoof2019_LA_cm_protocols"
+    cm_protocol_2019 = DATA_PATH_2019 / "ASVspoof2019_LA_cm_protocols"
+    train_path = DATA_PATH_2019 / "ASVspoof2019_LA_train/flac"
+    train_protocol = cm_protocol_2019 / "ASVspoof2019.LA.cm.train.trn.txt"
 
-    train_path = DATA_PATH / "ASVspoof2019_LA_train/flac"
-    train_protocol = cm_protocol / "ASVspoof2019.LA.cm.train.trn.txt"
+    dev_path_2019 = DATA_PATH_2019 / "ASVspoof2019_LA_dev/flac"
+    dev_protocol_2019 = cm_protocol_2019 / "ASVspoof2019.LA.cm.dev.trl.txt"
 
-    dev_path = DATA_PATH / "ASVspoof2019_LA_dev/flac"
-    dev_protocol = cm_protocol / "ASVspoof2019.LA.cm.dev.trl.txt"
+    dev_path_5 = DATA_PATH_5 / "flac_D/"
+    dev_protocol_5 = DATA_PATH_5 / "ASVspoof5.dev.track_1.tsv"
 
     model_dir = output_dir / "weights"
     os.makedirs(model_dir, exist_ok = True)
@@ -80,7 +84,7 @@ def main(args: argparse.Namespace) -> None:
 
     """    DATA LOADERS   """
 
-    train_loader, dev_loader = get_loader(train_path, train_protocol, dev_path, dev_protocol)
+    train_loader, dev_loader_2019, dev_loader_5 = get_loader(train_path, train_protocol, dev_path_2019, dev_protocol_2019, dev_path_5, dev_protocol_5)
     print("Data loaders ready.")
 
     """    OPTIMIZER    """
@@ -98,6 +102,12 @@ def main(args: argparse.Namespace) -> None:
     copy(args.config, output_dir / "config.json")
 
     """   TRAINING   """
+    print("Start training...")
+    n2019 = len(dev_loader_2019.dataset)
+    n5    = len(dev_loader_5.dataset)
+
+    w2019 = n2019 / (n2019 + n5)
+    w5    = n5    / (n2019 + n5)
 
     for epoch in range(config["num_epochs"]):
         print("training epoch{:03d}".format(epoch))
@@ -105,26 +115,52 @@ def main(args: argparse.Namespace) -> None:
         running_loss = train_epoch(train_loader, model, optimizer, device,
                                    scheduler, config)
         
-        produce_evaluation_file(dev_loader, model, device,
-                                metric_path/"dev_score.txt", dev_protocol)
+        produce_evaluation_file(dev_loader_2019, model, device,
+                                metric_path/"dev_score.txt", dev_protocol_2019)
+        produce_evaluation_file(dev_loader_5, model, device,
+                                metric_path/"dev_score_asv5.txt", dev_protocol_5, asv5 = True)
 
-        dev_eer, dev_dcf, dev_cllr = calculate_minDCF_EER_CLLR(
+
+        dev_dcf_2019, dev_eer_2019, dev_cllr_2019 = calculate_minDCF_EER_CLLR(
             cm_scores_file=metric_path/"dev_score.txt",
             output_file=metric_path/"dev_DCF_EER_{}epo.txt".format(epoch),
             printout=False)
 
+
+        dev_dcf_asv5, dev_eer_asv5, dev_cllr_asv5 = calculate_minDCF_EER_CLLR(
+            cm_scores_file=metric_path/"dev_score_asv5.txt",
+            output_file = metric_path/"dev_DCF_EER_asv5_{}epo.txt".format(epoch),
+            printout=False
+        )
+
+        dev_eer = w2019 * dev_eer_2019 + w5 * dev_eer_asv5
+        dev_dcf = w2019 * dev_dcf_2019 + w5 * dev_dcf_asv5
+        dev_cllr = w2019 * dev_cllr_2019 + w5 * dev_cllr_asv5
+
+
         print("DONE.\nLoss:{:.5f}, dev_eer: {:.3f}, dev_dcf:{:.5f} , dev_cllr:{:.5f}".format(
             running_loss, dev_eer, dev_dcf, dev_cllr))
+        print("  --> ASVspoof2019 LA dev eer: {:.3f}, dcf:{:.5f}, cllr:{:.5f}".format(
+            dev_eer_2019, dev_dcf_2019, dev_cllr_2019)
+        )
+        print("  --> ASVspoof5 dev eer: {:.3f}, dcf:{:.5f}, cllr:{:.5f}".format(
+            dev_eer_asv5, dev_dcf_asv5, dev_cllr_asv5)
+        )
 
         torch.save(model.state_dict(),
                     model_dir / "epoch_{}_{:03.3f}.pth".format(epoch, dev_eer))
 
-        best_dev_dcf = min(dev_dcf, best_dev_dcf)
-        best_dev_cllr = min(dev_cllr, best_dev_cllr)
+
         if best_dev_eer >= dev_eer:
             print("best model find at epoch", epoch)
             best_dev_eer = dev_eer
-            
+            best_dev_dcf = dev_dcf
+            best_dev_cllr = dev_cllr
+            torch.save(
+            model.state_dict(),
+            model_dir / "best_finetuned.pth"
+            )  
+
             print("Saving epoch {} for swa".format(epoch))
             optimizer_swa.update_swa()
             n_swa_update += 1
@@ -142,13 +178,18 @@ def get_model(model_config: Dict, device: torch.device):
     return model
 
 
-def get_loader(train_path, train_protocol, dev_path, dev_protocol):
+def get_loader(train_path, train_protocol, dev_path_2019, dev_protocol_2019, dev_path_5, dev_protocol_5):
     d_trn, file_list_trn = genSpoof_list_DFADD(str(train_protocol), is_train = True, is_eval = False)
-    d_dev, file_list_dev = genSpoof_list_DFADD(str(dev_protocol), is_train = False, is_eval = False)
+    d_dev, file_list_dev = genSpoof_list_DFADD(str(dev_protocol_2019), is_train = False, is_eval = False)
+
+    d_dev_5, file_list_dev_5 = genSpoof_list_asv5(str(dev_protocol_5), is_train = False, is_eval = False)
+    dev_dataset_asv5 = TestDataset(list_IDs = file_list_dev_5[:2000], base_dir = str(dev_path_5))
+    dev_loader_asv5 = DataLoader(dev_dataset_asv5, batch_size = 32, shuffle = False,\
+                            drop_last = False, num_workers = 4, pin_memory = True)
+
 
     trn_dataset = TrainDataset(list_IDs = file_list_trn, labels = d_trn, base_dir = str(train_path))
-    dev_dataset = TestDataset(list_IDs = file_list_dev, base_dir = str(dev_path))
-
+    dev_dataset = TestDataset(list_IDs = file_list_dev, base_dir = str(dev_path_2019))
     gen = torch.Generator()
     gen.manual_seed(0)
 
@@ -157,15 +198,17 @@ def get_loader(train_path, train_protocol, dev_path, dev_protocol):
     dev_loader = DataLoader(dev_dataset, batch_size = 32, shuffle = False,\
                             drop_last = False, num_workers = 4, pin_memory = True)
 
-    return train_loader, dev_loader
+    return train_loader, dev_loader, dev_loader_asv5
 
 
 def produce_evaluation_file(
-    data_loader: DataLoader, 
+    data_loader: DataLoader,
     model,
     device: torch.device,
     save_path: str,
-    trial_path: str) -> None:
+    trial_path: str,
+    asv5 = False) -> None:
+
     """Perform evaluation and save the score to a file"""
     model.eval()
     with open(trial_path, "r") as f_trl:
@@ -182,12 +225,21 @@ def produce_evaluation_file(
         score_list.extend(batch_score.tolist())
 
     #assert len(trial_lines) == len(fname_list) == len(score_list)
-    with open(save_path, "w") as fh:
-        for fn, sco, trl in zip(fname_list, score_list, trial_lines):
-            spk_id, utt_id,  _, _, key = trl.strip().split(' ')
-            assert fn == utt_id
-            fh.write("{} {} {} {}\n".format(spk_id, utt_id, sco, key))
-    print("Scores saved to {}".format(save_path))
+
+    if asv5:
+        with open(save_path, "w") as fh:
+            for fn, sco, trl in zip(fname_list, score_list, trial_lines):
+                spk_id, utt_id, _, _, _, _, _, src, key, _ = trl.strip().split(' ')
+                assert fn == utt_id
+                fh.write("{} {} {} {}\n".format(spk_id, utt_id, sco, key))
+        print("Scores saved to {}".format(save_path))
+    else:
+        with open(save_path, "w") as fh:
+            for fn, sco, trl in zip(fname_list, score_list, trial_lines):
+                spk_id, utt_id, _, _, key= trl.strip().split(' ')
+                assert fn == utt_id
+                fh.write("{} {} {} {}\n".format(spk_id, utt_id, sco, key))
+        print("Scores saved to {}".format(save_path))
 
 
 def train_epoch(

@@ -55,14 +55,14 @@ def main():
     }
 
     """    MODEL LOAD    """ 
-    model_path = "./models/weights/AASIST/best.pth"  # <- 모델 가중치 경로 (필요 시 수정해서 사용하시면 됩니다.)
+    model_path = "./exp_result/Finetune/weights/best_finetuned.pth"  # <- 모델 가중치 경로 (필요 시 수정해서 사용하시면 됩니다.)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = get_model(MODEL_CONFIG, device, model_path)
 
     print("Model loaded from {}".format(model_path))
     print("Device:",device)  
 
-    output_dir = "./exp_result/"
+    output_dir = "./exp_result/Finetune"
     output_dir = Path(output_dir)
     print("Results will be saved to {}".format(output_dir))
 

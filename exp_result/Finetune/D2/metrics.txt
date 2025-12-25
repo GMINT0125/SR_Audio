@@ -1,0 +1,5 @@
+
+CM SYSTEM
+	min DCF 		= 0.302792494481236 % (min DCF for countermeasure)
+	EER		= 10.697571744 % (EER for countermeasure)
+	CLLR		= 99.076544104 % (CLLR for countermeasure)

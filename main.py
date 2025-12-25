@@ -180,9 +180,9 @@ def get_loader(
         eval_database_path = database_path / "flac_E_eval/"
         eval_trial_path = (database_path /
                           "ASVspoof5.eval.track_1.tsv")
-        _, file_eval = genSpoof_list_asv5(dir_meta=eval_trial_path,
+        file_eval = genSpoof_list_asv5(dir_meta=eval_trial_path,
                                     is_train=False,
-                                    is_eval=False)
+                                    is_eval= True)
         print("no. evaluation files:", len(file_eval))
         eval_set = TestDataset(list_IDs=file_eval[:2000],
                                                 base_dir=eval_database_path)
